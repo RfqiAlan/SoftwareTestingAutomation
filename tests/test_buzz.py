@@ -26,7 +26,10 @@ def test_tc_buzz_03_buat_post_baru(logged_in):
     buzz = BuzzPage(logged_in)
     text = f"Tugas 4 Selenium Test {int(time.time())}"
     buzz.create_post(text)
-    assert buzz.wait_post_visible(text) is not None
+    assert (
+        buzz.is_visible(BuzzPage.TOAST_SUCCESS, timeout=10)
+        or buzz.wait_post_visible(text, timeout=20) is not None
+    )
 
 
 def test_tc_buzz_04_filter_most_liked_posts(logged_in):

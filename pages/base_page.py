@@ -1,5 +1,9 @@
-"""Kelas dasar Page Object: semua aksi dasar (klik, ketik, tunggu) ada di sini."""
-from selenium.common.exceptions import TimeoutException
+import time
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+    TimeoutException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -21,6 +25,8 @@ class BasePage:
     RECORDS_FOUND = (By.XPATH, "//span[contains(.,'Found')] | //div[contains(@class,'orangehrm-horizontal-padding')]//span[contains(@class,'oxd-text--span')]")
     NO_RECORDS = (By.XPATH, "//span[text()='No Records Found'] | //div[contains(@class,'oxd-toast--info')]")
 
+    LOADER = (By.CSS_SELECTOR, ".oxd-form-loader, .oxd-loading-spinner")
+
     def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, settings.TIMEOUT)
@@ -39,6 +45,15 @@ class BasePage:
         return self.visible(self.BREADCRUMB)
 
     # ---- menunggu elemen ------------------------------------------------
+    def wait_loader_gone(self, timeout=None):
+        """Tunggu hingga overlay loader / spinner OrangeHRM hilang."""
+        try:
+            WebDriverWait(self.driver, timeout or settings.TIMEOUT).until(
+                EC.invisibility_of_element_located(self.LOADER)
+            )
+        except Exception:
+            pass
+
     def visible(self, locator, timeout=None):
         return WebDriverWait(self.driver, timeout or settings.TIMEOUT).until(
             EC.visibility_of_element_located(locator),
@@ -65,11 +80,42 @@ class BasePage:
 
     # ---- aksi -----------------------------------------------------------
     def click(self, locator):
-        self.clickable(locator).click()
+        self.wait_loader_gone()
+        end_time = time.time() + settings.TIMEOUT
+        while True:
+            try:
+                self.clickable(locator).click()
+                return
+            except (ElementClickInterceptedException, StaleElementReferenceException):
+                if time.time() > end_time:
+                    try:
+                        el = self.visible(locator, timeout=2)
+                        self.driver.execute_script("arguments[0].click();", el)
+                        return
+                    except Exception:
+                        raise
+                self.wait_loader_gone(2)
+                time.sleep(0.3)
 
     def type_text(self, locator, text: str, clear: bool = True):
-        element = self.visible(locator)
-        element.click()
+        self.wait_loader_gone()
+        end_time = time.time() + settings.TIMEOUT
+        element = None
+        while True:
+            try:
+                element = self.visible(locator)
+                element.click()
+                break
+            except (ElementClickInterceptedException, StaleElementReferenceException):
+                if time.time() > end_time:
+                    try:
+                        element = self.visible(locator, timeout=2)
+                        self.driver.execute_script("arguments[0].focus();", element)
+                        break
+                    except Exception:
+                        raise
+                self.wait_loader_gone(2)
+                time.sleep(0.3)
         if clear:
             platform = str(self.driver.capabilities.get("platformName", "")).lower()
             modifier = Keys.COMMAND if "mac" in platform else Keys.CONTROL

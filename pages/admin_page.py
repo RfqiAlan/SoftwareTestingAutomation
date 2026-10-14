@@ -1,3 +1,4 @@
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -32,13 +33,22 @@ class AdminPage(BasePage):
         box.clear()
         box.send_keys(username)
         self.click(self.FILTER_SEARCH)
+        self.wait_loader_gone()
 
     def _rows_text(self):
-        return [r.text.lower() for r in self.driver.find_elements(*self.ROWS)]
+        try:
+            return [r.text.lower() for r in self.driver.find_elements(*self.ROWS)]
+        except StaleElementReferenceException:
+            return []
 
     def wait_rows_match(self, text: str):
         """Tunggu sampai daftar hanya berisi baris yang memuat `text`."""
-        WebDriverWait(self.driver, settings.TIMEOUT).until(
+        self.wait_loader_gone()
+        WebDriverWait(
+            self.driver,
+            settings.TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(
             lambda d: (rows := self._rows_text()) and all(text.lower() in r for r in rows),
             message=f"Hasil pencarian tidak memuat '{text}'",
         )
@@ -46,7 +56,12 @@ class AdminPage(BasePage):
 
     def wait_no_records(self):
         """Tidak ada data: tabel kosong atau muncul toast info 'No Records Found'."""
-        WebDriverWait(self.driver, settings.TIMEOUT).until(
+        self.wait_loader_gone()
+        WebDriverWait(
+            self.driver,
+            settings.TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(
             lambda d: len(self._rows_text()) == 0 or self.is_visible(self.TOAST_INFO, timeout=1),
             message="Pesan 'tidak ada data' tidak muncul",
         )

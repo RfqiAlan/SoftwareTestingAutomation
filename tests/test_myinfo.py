@@ -22,6 +22,7 @@ def test_tc_myinfo_02_ubah_contact_details(logged_in):
     page.open("/pim/viewMyDetails")
     page.click((By.XPATH, "//a[contains(@href,'contactDetails') or normalize-space()='Contact Details']"))
     page.wait_url_contains("/pim/contactDetails")
+    page.wait_loader_gone()
     suffix = str(int(time.time()))[-6:]
     street_input = (By.XPATH, "//label[text()='Street 1']/parent::div/following-sibling::div/input")
     page.type_text(street_input, f"Jl. Selenium {suffix}")

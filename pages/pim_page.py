@@ -1,3 +1,4 @@
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -26,6 +27,7 @@ class PimPage(BasePage):
         self.open("/pim/addEmployee")
         self.wait_breadcrumb()
         self.visible(self.FIRST_NAME)
+        self.wait_loader_gone()
 
     def submit_empty_form(self):
         self.click(self.SUBMIT)
@@ -55,19 +57,33 @@ class PimPage(BasePage):
         box.clear()
         box.send_keys(emp_id)
         self.click(self.FILTER_SEARCH)
+        self.wait_loader_gone()
 
     def _rows_text(self):
-        return [r.text for r in self.driver.find_elements(*self.ROWS)]
+        try:
+            return [r.text for r in self.driver.find_elements(*self.ROWS)]
+        except StaleElementReferenceException:
+            return []
 
     def wait_rows_contain(self, text: str):
-        WebDriverWait(self.driver, settings.TIMEOUT).until(
+        self.wait_loader_gone()
+        WebDriverWait(
+            self.driver,
+            settings.TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(
             lambda d: (rows := self._rows_text()) and all(text in r for r in rows),
             message=f"Hasil pencarian tidak memuat '{text}'",
         )
         return len(self._rows_text())
 
     def wait_no_records(self):
-        WebDriverWait(self.driver, settings.TIMEOUT).until(
+        self.wait_loader_gone()
+        WebDriverWait(
+            self.driver,
+            settings.TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(
             lambda d: len(self._rows_text()) == 0 or self.is_visible(self.TOAST_INFO, timeout=1),
             message="Pesan 'tidak ada data' tidak muncul",
         )

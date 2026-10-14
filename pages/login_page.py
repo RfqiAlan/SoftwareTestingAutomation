@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 
+import settings
 from pages.base_page import BasePage
 
 
@@ -15,7 +16,7 @@ class LoginPage(BasePage):
 
     def open_login(self):
         self.open("/auth/login")
-        self.visible(self.USERNAME)
+        self.visible(self.USERNAME, timeout=settings.TIMEOUT * 2)
 
     def login(self, username: str, password: str):
         if username:

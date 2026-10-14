@@ -12,10 +12,12 @@ class BuzzPage(BasePage):
     def create_post(self, text: str):
         self.open("/buzz/viewBuzz")
         self.wait_breadcrumb()
+        self.wait_loader_gone()
         box = self.visible(self.POST_BOX)
         box.click()
         box.send_keys(text)
         self.click(self.POST_BUTTON)
+        self.wait_loader_gone()
 
-    def wait_post_visible(self, text: str):
-        return self.visible((By.XPATH, f"//p[contains(., '{text}')]"))
+    def wait_post_visible(self, text: str, timeout=25):
+        return self.visible((By.XPATH, f"//p[contains(., '{text}')]"), timeout=timeout)
